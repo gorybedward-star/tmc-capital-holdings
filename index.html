@@ -221,17 +221,22 @@ footer a{color:#dbe3ee}
     <div class="form-card" id="offer">
       <h2>Get your no-obligation offer</h2>
       <p style="color:var(--muted);font-size:.95rem;margin:0">Three quick questions. Gory reviews every property personally.</p>
-      <form id="leadForm" novalidate>
+      <form id="leadForm" action="https://formsubmit.co/bedwardghllc@outlook.com" method="POST" novalidate>
+        <input type="hidden" name="_subject" value="New seller lead from tmccapitalfl.com">
+        <input type="hidden" name="_template" value="table">
+        <input type="hidden" name="_captcha" value="false">
+        <input type="hidden" name="_next" value="https://tmccapitalfl.com/thank-you.html">
+        <input type="hidden" name="Page" id="pageField" value="">
         <label for="addr">Property address</label>
-        <input id="addr" name="address" autocomplete="street-address" required placeholder="123 Main St, Orlando, FL">
+        <input id="addr" name="Property address" autocomplete="street-address" required placeholder="123 Main St, Orlando, FL">
         <div class="err">Please enter the property address.</div>
 
         <label for="phone">Best phone number</label>
-        <input id="phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required placeholder="(555) 555-5555">
+        <input id="phone" name="Phone" type="tel" autocomplete="tel" inputmode="tel" required placeholder="(555) 555-5555">
         <div class="err">Please enter a 10-digit phone number.</div>
 
         <label for="situation">What's going on with the property?</label>
-        <select id="situation" name="situation">
+        <select id="situation" name="Situation">
           <option value="">Choose one (optional)</option>
           <option>Tenant problems</option>
           <option>Repairs piling up</option>
@@ -241,7 +246,7 @@ footer a{color:#dbe3ee}
         </select>
 
         <p class="consent">By submitting, you agree that TMC Capital Holdings may call or text you about your property, including by automated means. Consent is not required to sell. Message and data rates may apply. Reply STOP to opt out. Requesting an offer does not obligate you to sell. <a href="privacy.html">Privacy policy</a></p>
-        <input type="checkbox" name="botcheck" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <input type="text" name="_honey" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
         <button class="btn btn-accent" type="submit" id="submitBtn">Request my offer</button>
         <div class="form-note" id="formNote" role="status" aria-live="polite" hidden></div>
       </form>
@@ -468,49 +473,23 @@ document.querySelectorAll(".opt").forEach(btn => btn.addEventListener("click", (
   track("situation_selected", {situation:currentSituation});
 }));
 
-/* ---- Lead form: validates, then emails the lead via FormSubmit ---- */
-document.getElementById("leadForm").addEventListener("submit", async e => {
-  e.preventDefault();
+/* ---- Lead form: validates, then posts to FormSubmit, which emails the lead
+   and redirects to thank-you.html. A plain form post (no AJAX) is the most
+   reliable path across browsers and ad blockers. ---- */
+document.getElementById("leadForm").addEventListener("submit", e => {
   const form = e.target;
   const addr = document.getElementById("addr"), phone = document.getElementById("phone");
   const okAddr = addr.value.trim().length >= 6;
   const okPhone = phone.value.replace(/\D/g,"").replace(/^1/,"").length === 10;
   addr.classList.toggle("invalid", !okAddr); addr.setAttribute("aria-invalid", !okAddr);
   phone.classList.toggle("invalid", !okPhone); phone.setAttribute("aria-invalid", !okPhone);
-  if (!okAddr) return addr.focus();
-  if (!okPhone) return phone.focus();
-  if (form.botcheck.checked) return;                     // spam bot filled the hidden box
-
-  const note = document.getElementById("formNote"), btn = document.getElementById("submitBtn");
-  const situation = document.getElementById("situation").value || "Not selected";
-  const show = (msg, isErr) => { note.hidden = false; note.textContent = msg; note.classList.toggle("error", !!isErr); };
-
-  btn.disabled = true; btn.textContent = "Sending…";
-  try {
-    const res = await fetch("https://formsubmit.co/ajax/" + CONFIG.leadEmail, {
-      method: "POST",
-      headers: {"Content-Type":"application/json", "Accept":"application/json"},
-      body: JSON.stringify({
-        _subject: "New seller lead: " + addr.value.trim(),
-        _template: "table",
-        _captcha: "false",
-        "Property address": addr.value.trim(),
-        "Phone": phone.value.trim(),
-        "Situation": situation,
-        "Page": location.href
-      })
-    });
-    const data = await res.json();
-    if (String(data.success) !== "true") throw new Error(data.message || "Send failed");
-    track("lead_form_submit", {situation});
-    form.reset();
-    show("Thank you! Gory will call or text you soon. Prefer to talk now? Call " + CONFIG.phoneDisplay + ".");
-  } catch (err) {
-    show("Sorry, that didn't go through. Please call or text " + CONFIG.phoneDisplay + ".", true);
-  } finally {
-    btn.disabled = false; btn.textContent = "Request my offer";
-  }
+  if (!okAddr) { e.preventDefault(); return addr.focus(); }
+  if (!okPhone) { e.preventDefault(); return phone.focus(); }
+  document.getElementById("pageField").value = location.href;
+  track("lead_form_submit", {situation: document.getElementById("situation").value || currentSituation});
+  const btn = document.getElementById("submitBtn"); btn.disabled = true; btn.textContent = "Sending…";
 });
+window.addEventListener("pageshow", () => { const btn = document.getElementById("submitBtn"); btn.disabled = false; btn.textContent = "Request my offer"; });
 </script>
 </body>
 </html>
